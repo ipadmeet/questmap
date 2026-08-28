@@ -439,7 +439,7 @@
 <!-- 閉じるボタン付き 全画面Webサイト表示モーダル -->
 <div id="siteOverlay" class="site-overlay">
   <div class="site-header">
-    <span class="site-title">連携サイト</span>
+    <span class="site-title">kuniaki.com</span>
     <button class="btn-close-overlay" onclick="closeSiteOverlay()">閉じる</button>
   </div>
   <iframe id="siteIframe" class="site-iframe" src=""></iframe>
@@ -520,8 +520,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 座標データ
-const TARGET_URL = "https://sites.google.com/view/incictdesign/";
+// 座標データと遷移先URL
+const TARGET_URL = "https://kuniaki.com";
 const locations = [
   {lat:36.51234455009052, lon:140.61580074786988},
   {lat:36.513271792561966, lon:140.61603447231022},
