@@ -607,9 +607,9 @@ function closeModal() {
   document.getElementById("imageModal").style.display = "none";
 }
 
-// 外部Webサイトを開く機能
+// 外部Webサイトを開く機能（手動用）
 function openTargetSite() {
-  window.open(TARGET_URL, '_blank', 'noopener,noreferrer');
+  window.location.href = TARGET_URL;
 }
 
 function hideSiteControl() {
@@ -680,7 +680,7 @@ document.body.addEventListener('click', function() {
   enableOrientation();
 }, { once: true });
 
-// GPS監視 & 指定座標到達判定
+// GPS監視 & 指定座標到達自動判定
 let lastGpsHeading = null;
 let isInsideTargetArea = false;
 
@@ -713,7 +713,8 @@ navigator.geolocation.watchPosition(pos => {
   if (minDist < 0.00018) {
     if (!isInsideTargetArea) {
       isInsideTargetArea = true;
-      openTargetSite(); // 新しいタブで自動オープン
+      // ポップアップブロックを回避するため現在のタブで自動遷移
+      window.location.href = TARGET_URL;
     }
     siteControl.style.display = "flex";
   } else {
