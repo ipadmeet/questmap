@@ -165,9 +165,7 @@
     white-space: nowrap;
   }
 
-  /* ----------------------------------
-     画面向きに応じたレスポンシブレイアウト
-  ---------------------------------- */
+  /* レスポンシブレイアウト */
   @media (orientation: portrait) {
     .header-container { top: 10px; left: 10px; right: 10px; }
     .controls { top: 60px; left: 10px; right: 10px; }
@@ -212,35 +210,55 @@
   .leaflet-control { pointer-events: auto; }
 
   /* ----------------------------------
-     Webサイト手動制御コントロールパネル
+     全画面Webサイト表示用オーバーレイ
   ---------------------------------- */
-  .site-control-panel {
-    position: fixed;
-    bottom: 50px;
-    right: 10px;
-    z-index: 2500;
+  .site-overlay {
     display: none;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 8px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5000;
+    background: #fff;
+    flex-direction: column;
   }
 
-  .site-control-panel button {
-    padding: 8px 14px;
-    font-size: 12px;
+  .site-header {
+    height: 50px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+  }
+
+  .site-title {
+    font-size: 14px;
     font-weight: bold;
+    color: #333;
+  }
+
+  .btn-close-overlay {
+    padding: 6px 16px;
+    background: #dc3545;
+    color: white;
     border: none;
     border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
     cursor: pointer;
   }
 
-  .btn-open-site { background: #007bff; color: white; }
-  .btn-close-site { background: #6c757d; color: white; }
+  .site-iframe {
+    width: 100%;
+    height: calc(100% - 50px);
+    border: none;
+  }
 
   /* ----------------------------------
-     マップ関連ポップアップ＆説明モーダル
+     ポップアップ & モーダル
   ---------------------------------- */
   .custom-popup img {
     width: 120px;
@@ -326,9 +344,7 @@
     margin: 0; padding: 12px 10px; font-size: 14px; color: #333; font-weight: bold;
   }
 
-  /* ----------------------------------
-     Collection タブ & 拡大モーダル
-  ---------------------------------- */
+  /* Collection タブ */
   #saved {
     background: white;
     overflow-y: auto;
@@ -413,17 +429,20 @@
   <div id="map-container">
     <div id="map"></div>
   </div>
-  
-  <!-- 指定座標上で開閉制御するコントロールパネル -->
-  <div id="siteControlPanel" class="site-control-panel">
-    <button class="btn-open-site" onclick="openTargetSite()">サイトを開く</button>
-    <button class="btn-close-site" onclick="hideSiteControl()">閉じる</button>
-  </div>
 
   <!-- 下部説明 -->
   <div class="bottom-instructions">
     <h3>回転OFF→名称→マーカー追加モード→ピン止め</h3>
   </div>
+</div>
+
+<!-- 閉じるボタン付き 全画面Webサイト表示モーダル -->
+<div id="siteOverlay" class="site-overlay">
+  <div class="site-header">
+    <span class="site-title">連携サイト</span>
+    <button class="btn-close-overlay" onclick="closeSiteOverlay()">閉じる</button>
+  </div>
+  <iframe id="siteIframe" class="site-iframe" src=""></iframe>
 </div>
 
 <!-- 説明入力モーダル -->
@@ -575,7 +594,7 @@ function showTab(tabId){
   }
 }
 
-// ユーザーが投稿した画像をコレクションタブに表示
+// ユーザー投稿画像のコレクション表示
 let userUploadedImages = [];
 
 function renderSaved(){
@@ -607,13 +626,19 @@ function closeModal() {
   document.getElementById("imageModal").style.display = "none";
 }
 
-// 外部Webサイトを開く機能（手動用）
-function openTargetSite() {
-  window.location.href = TARGET_URL;
+// 全画面Webサイト表示・非表示コントロール
+function openSiteOverlay() {
+  const overlay = document.getElementById("siteOverlay");
+  const iframe = document.getElementById("siteIframe");
+  if (!iframe.src) {
+    iframe.src = TARGET_URL;
+  }
+  overlay.style.display = "flex";
 }
 
-function hideSiteControl() {
-  document.getElementById("siteControlPanel").style.display = "none";
+function closeSiteOverlay() {
+  const overlay = document.getElementById("siteOverlay");
+  overlay.style.display = "none";
 }
 
 // 地図回転制御
@@ -708,20 +733,18 @@ navigator.geolocation.watchPosition(pos => {
     }
   });
 
-  const siteControl = document.getElementById("siteControlPanel");
-
   if (minDist < 0.00018) {
     if (!isInsideTargetArea) {
       isInsideTargetArea = true;
-      // ポップアップブロックを回避するため現在のタブで自動遷移
-      window.location.href = TARGET_URL;
+      // 範囲内に入ったら自動でサイトモーダルを開く
+      openSiteOverlay();
     }
-    siteControl.style.display = "flex";
   } else {
     if (isInsideTargetArea) {
       isInsideTargetArea = false;
+      // 範囲外に出たら自動で閉じる
+      closeSiteOverlay();
     }
-    siteControl.style.display = "none";
   }
 }, err => {
   console.error("位置情報の取得に失敗しました", err);
@@ -861,7 +884,7 @@ map.on('click', async function(e) {
   updateFileLabel();
 });
 
-// Firestoreリアルタイム同期（Collection用の全画像集約含む）
+// Firestoreリアルタイム同期
 db.collection("markers").onSnapshot(snapshot => {
   userUploadedImages = [];
 
@@ -906,7 +929,7 @@ db.collection("markers").onSnapshot(snapshot => {
   });
 });
 
-// 削除イベントハンドラ
+// 削除処理
 document.addEventListener('click', function(e) {
   if (e.target && e.target.classList.contains('delete-btn')) {
     const id = e.target.getAttribute('data-id');
