@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QuestMap & Shared Map</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* 1段目：ヘッダー */
+  .header-container {
+    position: fixed;
+    z-index: 2000;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 12px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: auto;
+  }
+
+  .header-container h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    white-space: nowrap;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  #tabs {
+    display: flex;
+    gap: 4px;
+  }
+
+  #tabs button, .rotate-toggle-btn {
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .rotate-toggle-btn.off {
+    background: #ffeded;
+    color: #d9534f;
+    border-color: #ffcccc;
+  }
+
+  .tab {
+    display: none;
+    width: 100%;
+    height: 100vh;
+  }
+  .tab.active {
+    display: block;
+  }
+
+  /* 2段目：操作コントロールパネル */
+  .controls {
+    position: fixed;
+    z-index: 2000;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    pointer-events: auto;
+  }
+
+  .row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .text-input { 
+    flex: 1;
+    min-width: 100px; 
+    font-size: 16px;
+  }
+
+  .desc-btn, .file-custom-btn {
+    border: 1px solid #ccc;
+    background-color: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  .desc-btn:hover, .file-custom-btn:hover {
+    background-color: #e2e6ea;
+  }
+
+  .file-input-wrapper {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+  }
+
+  .file-input-wrapper input[type=file] {
+    font-size: 100px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .add-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .zip-container {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    border-left: 1px solid #ccc;
+    padding-left: 6px;
+    flex: 1;
+  }
+
+  .zip-input { 
+    width: 100%;
+    min-width: 80px; 
+    font-size: 16px;
+  }
+  .zip-btn { 
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer; 
+    white-space: nowrap;
+  }
+
+  /* レスポンシブレイアウト */
+  @media (orientation: portrait) {
+    .header-container { top: 10px; left: 10px; right: 10px; }
+    .controls { top: 60px; left: 10px; right: 10px; }
+  }
+
+  @media (orientation: landscape) {
+    .header-container { top: 10px; left: 10px; width: 320px; }
+    .controls { top: 10px; left: 340px; right: 10px; }
+  }
+
+  /* マップ構造 */
+  #map-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  #map {
+    width: 150vmax;
+    height: 150vmax;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
+    transition: transform 0.2s ease-out;
+  }
+
+  .leaflet-control-container {
+    transform-origin: center center;
+    position: absolute;
+    width: 66.6% !important;
+    height: 66.6% !important;
+    top: 16.7% !important;
+    left: 16.7% !important;
+    pointer-events: none;
+  }
+  .leaflet-control { pointer-events: auto; }
+
+  /* ----------------------------------
+     Webサイトモーダル & 操作ボタン
+  ---------------------------------- */
+  .site-control-panel {
+    position: fixed;
+    bottom: 50px;
+    right: 10px;
+    z-index: 2500;
+    display: none;
+    gap: 6px;
+  }
+
+  .site-control-panel button {
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .btn-open-site { background: #007bff; color: white; }
+  .btn-close-site { background: #dc3545; color: white; }
+
+  .site-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 3500;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .site-modal-content {
+    position: relative;
+    width: 90%;
+    height: 85%;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .site-modal-header {
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .site-modal-header button {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .site-modal-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  /* ポップアップ＆モーダル共通 */
+  .custom-popup img {
+    width: 120px;
+    display: block;
+    margin-top: 5px;
+    margin-bottom: 5px;
+  }
+
+  .popup-desc {
+    font-size: 13px;
+    color: #555;
+    margin-top: 4px;
+    word-break: break-all;
+  }
+  .popup-desc a { color: #007bff; text-decoration: underline; }
+
+  .delete-btn {
+    margin-top: 8px;
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .confirm-box {
+    margin-top: 5px;
+    background: #fff3f3;
+    padding: 5px;
+    border: 1px solid #ffcccc;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  .yes-btn { background-color: #d9534f; color: white; border: none; padding: 2px 8px; margin-right: 5px; border-radius: 3px; cursor: pointer; }
+  .no-btn { background-color: #f0ad4e; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; }
+
+  .custom-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 3000;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .custom-modal {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 280px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .custom-modal h3 { margin: 0; font-size: 15px; color: #333; }
+  .custom-modal textarea {
+    width: 100%; height: 100px; resize: none; box-sizing: border-box;
+    padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;
+    user-select: text !important; -webkit-user-select: text !important;
+  }
+
+  .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal-btn { padding: 6px 12px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+  .modal-ok { background-color: #007bff; color: white; }
+  .modal-cancel { background-color: #6c757d; color: white; }
+
+  .bottom-instructions {
+    position: fixed;
+    bottom: 0; left: 0; width: 100%;
+    z-index: 2000;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .bottom-instructions h3 {
+    margin: 0; padding: 12px 10px; font-size: 14px; color: #333; font-weight: bold;
+  }
+
+  /* Collection タブ & 拡大モーダル */
+  #saved {
+    background: white;
+    overflow-y: auto;
+    padding: 80px 10px 20px;
+    box-sizing: border-box;
+  }
+
+  #savedGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .saved-img {
+    width: 100%; height: auto; border-radius: 5px;
+    object-fit: cover; aspect-ratio: 1; cursor: pointer;
+    -webkit-touch-callout: none; user-select: none;
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 4000;
+    left: 0; top: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    align-items: center; justify-content: center;
+  }
+
+  .modal-content {
+    max-width: 90%; max-height: 80%; object-fit: contain;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+
+  .close-btn {
+    position: absolute; top: 20px; right: 25px;
+    color: #fff; font-size: 35px; font-weight: bold; cursor: pointer;
+  }
+
+  @media (max-width: 600px) {
+    .bottom-instructions h3 { font-size: 12px; padding: 10px 5px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="headerContainer" class="header-container">
+  <h2>QuestMap</h2>
+  <div class="header-right">
+    <button id="rotateToggleBtn" class="rotate-toggle-btn" onclick="toggleRotation()">回転:ON</button>
+    <div id="tabs">
+      <button onclick="showTab('main')">Map</button>
+      <button onclick="showTab('saved')">Collection</button>
+    </div>
+  </div>
+</div>
+
+<div id="main" class="tab active">
+  <div id="controlsPanel" class="controls">
+    <div class="row">
+      <input type="text" id="text" class="text-input" placeholder="名称">
+      <button class="desc-btn" id="desc-btn" onclick="openDescModal()">説明を追加</button>
+      
+      <div class="file-input-wrapper">
+        <div class="file-custom-btn" id="file-label">画像を選択</div>
+        <input type="file" id="image" accept="image/*" onchange="updateFileLabel()">
+      </div>
+    </div>
+    
+    <div class="row">
+      <button class="add-btn" onclick="enableAdd()">マーカー追加モード</button>
+      <div class="zip-container">
+        <input type="text" id="zipcode" class="zip-input" placeholder="郵便番号(－なし)">
+        <button class="zip-btn" onclick="searchZipcode()">検索</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="map-container">
+    <div id="map"></div>
+  </div>
+  
+  <div id="siteControlPanel" class="site-control-panel">
+    <button class="btn-open-site" onclick="openSiteModal()">Webサイトを開く</button>
+    <button class="btn-close-site" onclick="closeSiteModal()">閉じる</button>
+  </div>
+
+  <div class="bottom-instructions">
+    <h3>回転OFF→名称→マーカー追加モード→ピン止め</h3>
+  </div>
+</div>
+
+<div id="siteModalOverlay" class="site-modal-overlay">
+  <div class="site-modal-content">
+    <div class="site-modal-header">
+      <span style="font-size: 13px; font-weight: bold;">連動Webサイト</span>
+      <button onclick="closeSiteModal()">閉じる</button>
+    </div>
+    <iframe class="site-modal-frame" src="https://sites.google.com/view/incictdesign/"></iframe>
+  </div>
+</div>
+
+<div class="custom-modal-overlay" id="desc-modal">
+  <div class="custom-modal">
+    <h3>この場所の説明を入力</h3>
+    <textarea id="modal-textarea" placeholder="説明やURL（https://...）を入力してください..."></textarea>
+    <div class="modal-buttons">
+      <button class="modal-btn modal-cancel" onclick="closeDescModal(false)">キャンセル</button>
+      <button class="modal-btn modal-ok" onclick="closeDescModal(true)">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="saved" class="tab">
+  <div id="savedGrid"></div>
+</div>
+
+<div id="imageModal" class="modal" onclick="closeModal()">
+  <span class="close-btn" onclick="closeModal()">&times;</span>
+  <img class="modal-content" id="modalImage" onclick="event.stopPropagation()">
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<script>
+// セキュリティ・ガード処理
+document.addEventListener('contextmenu', e => {
+  if (e.target && e.target.id === 'modal-textarea') return;
+  e.preventDefault();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.id === 'modal-textarea') {
+    if (['v', 'c', 'a', 'x', 'z'].includes(e.key.toLowerCase())) return;
+  }
+  if (e.key === 'F12' || 
+      ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j'].includes(e.key.toLowerCase())) || 
+      ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u')) {
+    e.preventDefault();
+  }
+});
+
+document.getElementById('modal-textarea').addEventListener('paste', function(e) {
+  e.stopPropagation();
+});
+
+window.addEventListener('resize', () => {
+  if (map) {
+    setTimeout(() => { map.invalidateSize(); }, 200);
+  }
+});
+
+let myUserId = localStorage.getItem('map_user_id');
+if (!myUserId) {
+  myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('map_user_id', myUserId);
+}
+
+// Firebase設定
+const firebaseConfig = {
+  apiKey: "AIzaSyAguJ8B6ILRpYUXLc2H2hKYRAsKktfKerI",
+  authDomain: "kunimap-3c5f6.firebaseapp.com",
+  projectId: "kunimap-3c5f6",
+  storageBucket: "kunimap-3c5f6.firebasestorage.app",
+  messagingSenderId: "262185437500",
+  appId: "1:262185437500:web:7768f16679009037a93639"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// 座標データ（指定リンク統合用）
+const TARGET_URL = "https://sites.google.com/view/incictdesign/";
+const locations = [
+  {lat:36.51234455009052, lon:140.61580074786988},
+  {lat:36.513271792561966, lon:140.61603447231022},
+  {lat:36.513245085434534, lon:140.61584547996083},
+  {lat:36.512598930349405, lon:140.61656212773877},
+  {lat:36.512449776989214, lon:140.61633714719437},
+  {lat:36.51243138819888, lon:140.61619224447082},
+  {lat:36.466283341951694, lon:140.58831299567967},
+  {lat:36.512661233777315, lon:140.6162456079477},
+  {lat:36.512775648210024, lon:140.61653286045507},
+  {lat:36.51297821595828, lon:140.6164741403123},
+  {lat:36.51299410826084, lon:140.6167545628011},
+  {lat:36.513000451529734, lon:140.61636834128714},
+  {lat:36.51293569936873, lon:140.61604656249963},
+  {lat:36.51305673620161, lon:140.61630255150624},
+  {lat:36.513172084651906, lon:140.61627691007047},
+  {lat:36.513384169685125, lon:140.61633219909413},
+  {lat:36.513415918643915, lon:140.6164741403123},
+  {lat:36.51344073132849, lon:140.61685260992806},
+  {lat:36.51348837166392, lon:140.61684396565823},
+  {lat:36.51314000105428, lon:140.6159474312394},
+  {lat:36.51334743559215, lon:140.61615983332496},
+  {lat:36.51359655481083, lon:140.61604869270548},
+  {lat:36.513545937027786, lon:140.51576960624424},
+  {lat:36.512783688748414, lon:140.61603263905204},
+  {lat:36.51268840718737, lon:140.61572761977806},
+  {lat:36.512600073135346, lon:140.61581603110932},
+  {lat:36.51258000777162, lon:140.61567064423855},
+  {lat:36.46326713969331, lon:140.58656395160605},
+  {lat:36.47836996114928, lon:140.57734994952258},
+  {lat:36.51292421637754, lon:140.61870469761578},
+  {lat:36.51306198633925, lon:140.61935765325467},
+  {lat:36.51296022707376, lon:140.51565419159862},
+  {lat:36.50907720177117, lon:140.61692898718803},
+  {lat:36.48695879241465, lon:140.60706357178495}
+];
+
+// 地図の初期化
+const defaultLat = locations[0].lat;
+const defaultLon = locations[0].lon;
+const map = L.map('map', { zoomControl: false }).setView([defaultLat, defaultLon], 16);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+let currentMarker = L.circleMarker([defaultLat, defaultLon], {
+  color: '#ff0000',
+  fillColor: '#ff0000',
+  fillOpacity: 0.6,
+  radius: 9,
+  weight: 2
+}).addTo(map);
+
+// タブ制御
+function showTab(tabId){
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById(tabId).classList.add("active");
+  
+  const controlsPanel = document.getElementById("controlsPanel");
+
+  if (tabId === 'main') {
+    controlsPanel.style.display = "flex";
+    setTimeout(() => { map.invalidateSize(); }, 100);
+  } else {
+    controlsPanel.style.display = "none";
+    renderSaved();
+  }
+}
+
+// ユーザーが追加した共有画像をコレクションにレンダリング
+let userUploadedImages = [];
+
+function renderSaved(){
+  const grid = document.getElementById("savedGrid");
+  grid.innerHTML = "";
+
+  if (userUploadedImages.length === 0) {
+    grid.innerHTML = "<div style='grid-column: 1/-1; text-align:center; padding:20px; color:#666;'>まだ追加された画像はありません</div>";
+    return;
+  }
+
+  userUploadedImages.forEach((src) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.className = "saved-img";
+    img.onclick = () => openModal(src);
+    grid.appendChild(img);
+  });
+}
+
+function openModal(src) {
+  const modal = document.getElementById("imageModal");
+  const modalImg = document.getElementById("modalImage");
+  modalImg.src = src;
+  modal.style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("imageModal").style.display = "none";
+}
+
+// モーダル開閉制御
+function openSiteModal() {
+  document.getElementById("siteModalOverlay").style.display = "flex";
+}
+
+function closeSiteModal() {
+  document.getElementById("siteModalOverlay").style.display = "none";
+}
+
+// 地図回転制御
+let isRotationEnabled = true;
+let currentHeading = 0;
+
+function toggleRotation() {
+  isRotationEnabled = !isRotationEnabled;
+  const btn = document.getElementById("rotateToggleBtn");
+  
+  if (isRotationEnabled) {
+    btn.textContent = "回転: ON";
+    btn.classList.remove("off");
+  } else {
+    btn.textContent = "回転: OFF";
+    btn.classList.add("off");
+    rotateMap(0);
+  }
+}
+
+function rotateMap(heading) {
+  if (heading === null || heading === undefined) return;
+  currentHeading = heading;
+  const mapEl = document.getElementById('map');
+  mapEl.style.transform = `translate(-50%, -50%) rotate(${-heading}deg)`;
+  
+  const controls = document.querySelectorAll('.leaflet-control-container');
+  controls.forEach(ctrl => {
+    ctrl.style.transform = `rotate(${heading}deg)`;
+  });
+}
+
+function enableOrientation() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(permissionState => {
+        if (permissionState === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation);
+        }
+      })
+      .catch(console.error);
+  } else {
+    window.addEventListener('deviceorientation', handleOrientation, true);
+  }
+}
+
+function handleOrientation(event) {
+  if (!isRotationEnabled) return;
+
+  let heading = event.webkitCompassHeading;
+  if (heading === undefined) {
+    if (event.absolute) {
+      heading = 360 - event.alpha;
+    } else {
+      return; 
+    }
+  }
+  if (lastGpsHeading === null) {
+    rotateMap(heading);
+  }
+}
+
+document.body.addEventListener('click', function() {
+  enableOrientation();
+}, { once: true });
+
+// GPS監視 & 指定座標判定
+let lastGpsHeading = null;
+let isInsideTargetArea = false;
+
+navigator.geolocation.watchPosition(pos => {
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  const heading = pos.coords.heading;
+
+  currentMarker.setLatLng([lat, lon]);
+  map.setView([lat, lon], 16);
+
+  if (isRotationEnabled && heading !== null && !isNaN(heading)) {
+    lastGpsHeading = heading;
+    rotateMap(heading);
+  } else {
+    lastGpsHeading = null;
+  }
+
+  // 近接判定（約20m）
+  let minDist = 999;
+  locations.forEach(loc => {
+    const dist = Math.hypot(lat - loc.lat, lon - loc.lon);
+    if(dist < minDist){
+      minDist = dist;
+    }
+  });
+
+  const siteControl = document.getElementById("siteControlPanel");
+
+  if (minDist < 0.00018) {
+    if (!isInsideTargetArea) {
+      isInsideTargetArea = true;
+      openSiteModal(); // 自動オープン
+    }
+    siteControl.style.display = "flex";
+  } else {
+    if (isInsideTargetArea) {
+      isInsideTargetArea = false;
+      closeSiteModal(); // エリア外で自動クローズ
+    }
+    siteControl.style.display = "none";
+  }
+}, err => {
+  console.error("位置情報の取得に失敗しました", err);
+}, {
+  enableHighAccuracy: true
+});
+
+// マーカー投稿・共有機能
+let addMode = false;
+let tempDescription = ""; 
+const markers = {};
+
+function enableAdd(){
+  addMode = true;
+  alert("地図をクリックしてください");
+}
+
+function openDescModal() {
+  document.getElementById("modal-textarea").value = tempDescription;
+  document.getElementById("desc-modal").style.display = "flex";
+  setTimeout(() => { document.getElementById("modal-textarea").focus(); }, 50);
+}
+
+function closeDescModal(isSave) {
+  if (isSave) {
+    tempDescription = document.getElementById("modal-textarea").value.trim();
+    const descBtn = document.getElementById("desc-btn");
+    if (tempDescription) {
+      descBtn.textContent = "説明入力済";
+      descBtn.style.backgroundColor = "#e2e6ea";
+    } else {
+      descBtn.textContent = "説明を追加";
+      descBtn.style.backgroundColor = "#f8f9fa";
+    }
+  }
+  document.getElementById("desc-modal").style.display = "none";
+}
+
+function updateFileLabel() {
+  const fileInput = document.getElementById("image");
+  const fileLabel = document.getElementById("file-label");
+  if (fileInput.files.length > 0) {
+    fileLabel.textContent = "画像選択中";
+    fileLabel.style.backgroundColor = "#e2e6ea";
+  } else {
+    fileLabel.textContent = "画像を選択";
+    fileLabel.style.backgroundColor = "#f8f9fa";
+  }
+}
+
+async function searchZipcode() {
+  const zipInput = document.getElementById("zipcode").value.trim();
+  const cleanZip = zipInput.replace(/-/g, "");
+  if (cleanZip.length !== 7 || isNaN(cleanZip)) {
+    alert("郵便番号は7桁の数字で入力してください。");
+    return;
+  }
+  try {
+    const response = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleanZip}`);
+    const data = await response.json();
+    if (data.status === 200 && data.results) {
+      const result = data.results[0];
+      const address = result.address1 + result.address2 + result.address3;
+      const geoResponse = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(address)}`);
+      const geoData = await geoResponse.json();
+      if (geoData && geoData.length > 0) {
+        const lng = geoData[0].geometry.coordinates[0];
+        const lat = geoData[0].geometry.coordinates[1];
+        map.setView([lat, lng], 15);
+      } else { alert("該当する地図上の位置が見つかりませんでした。"); }
+    } else { alert("該当する郵便番号が見つかりませんでした。"); }
+  } catch (error) { alert("検索中にエラーが発生しました。"); }
+}
+
+function resizeImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement("canvas");
+        const maxWidth = 300;
+        const scale = maxWidth / img.width;
+        canvas.width = maxWidth;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const base64 = canvas.toDataURL("image/jpeg", 0.7);
+        resolve(base64);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function linkify(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.replace(urlRegex, function(url) {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+}
+
+map.on('click', async function(e) {
+  if (!addMode) return;
+
+  if (isRotationEnabled) {
+    alert("ピン止めは「回転:OFF」にしてください");
+    return;
+  }
+
+  addMode = false;
+
+  const text = document.getElementById("text").value;
+  const file = document.getElementById("image").files[0];
+  if (!text) { alert("名称を入力してください"); return; }
+
+  let imageData = null;
+  if (file) { imageData = await resizeImage(file); }
+
+  await db.collection("markers").add({
+    lat: e.latlng.lat,
+    lng: e.latlng.lng,
+    text: text,
+    description: tempDescription, 
+    image: imageData,
+    uid: myUserId
+  });
+
+  document.getElementById("text").value = "";
+  document.getElementById("image").value = "";
+  tempDescription = ""; 
+  
+  const descBtn = document.getElementById("desc-btn");
+  descBtn.textContent = "説明を追加";
+  descBtn.style.backgroundColor = "#f8f9fa";
+  updateFileLabel();
+});
+
+// Firestoreリアルタイム同期（Collection用の全画像集約含む）
+db.collection("markers").onSnapshot(snapshot => {
+  userUploadedImages = []; // 全ユーザーの画像を一度クリアして同期
+
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    if (data.image) {
+      userUploadedImages.push(data.image);
+    }
+  });
+
+  snapshot.docChanges().forEach(change => {
+    const data = change.doc.data();
+    const id = change.doc.id;
+
+    if (change.type === "added") {
+      let html = `<div class="custom-popup" id="popup-${id}"><strong>${data.text}</strong>`;
+      
+      if (data.image) { 
+        html += `<img src="${data.image}">`; 
+      }
+      
+      if (data.description) {
+        const linkedText = linkify(data.description);
+        html += `<div class="popup-desc">${linkedText.replace(/\n/g, '<br>')}</div>`;
+      }
+      
+      if (data.uid === myUserId) {
+        html += `<button class="delete-btn" data-id="${id}">削除</button>`;
+      }
+      html += `</div>`;
+
+      const marker = L.marker([data.lat, data.lng]).addTo(map).bindPopup(html);
+      markers[id] = marker;
+    }
+
+    if (change.type === "removed") {
+      if (markers[id]) {
+        map.removeLayer(markers[id]);
+        delete markers[id];
+      }
+    }
+  });
+});
+
+// 削除処理
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList.contains('delete-btn')) {
+    const id = e.target.getAttribute('data-id');
+    const popupDiv = document.getElementById(`popup-${id}`);
+    if (popupDiv) {
+      e.target.outerHTML = `
+        <div class="confirm-box" id="confirm-${id}">
+          <div style="font-size:12px; margin-bottom:4px; color:#d9534f;">本当に削除しますか？</div>
+          <button class="yes-btn" data-id="${id}">はい</button>
+          <button class="no-btn" data-id="${id}">いいえ</button>
+        </div>
+      `;
+    }
+  }
+  
+  if (e.target && e.target.classList.contains('yes-btn')) {
+    const id = e.target.getAttribute('data-id');
+    if (id) {
+      db.collection("markers").doc(id).delete().catch(err => alert("削除権限がありません"));
+    }
+  }
+  
+  if (e.target && e.target.classList.contains('no-btn')) {
+    const id = e.target.getAttribute('data-id');
+    const confirmBox = document.getElementById(`confirm-${id}`);
+    if (confirmBox) {
+      confirmBox.outerHTML = `<button class="delete-btn" data-id="${id}">削除</button>`;
+    }
+  }
+});
+</script>
+</body>
+</html>
