@@ -22,14 +22,14 @@
   }
 
   /* ----------------------------------
-     1段目：ヘッダー & タブ切り替え（最前面常時表示）
+     1段目：ヘッダー & タブ切り替え（最前面常時表示 z-index: 10000）
   ---------------------------------- */
   .header-container {
     position: fixed;
     top: 10px;
     left: 10px;
     right: 10px;
-    z-index: 4000;
+    z-index: 10000; /* 最前面へ配置 */
     background: rgba(255, 255, 255, 0.95);
     padding: 8px 12px;
     border-radius: 10px;
@@ -213,7 +213,7 @@
   .leaflet-control { pointer-events: auto; }
 
   /* ----------------------------------
-     アプリ内ウェブサイト表示エリア（ヘッダー下）
+     アプリ内ウェブサイト表示エリア（ヘッダー下 z-index: 9000）
   ---------------------------------- */
   #embeddedSiteModal {
     display: none;
@@ -222,9 +222,9 @@
     left: 0;
     width: 100%;
     height: 100%;
-    padding-top: 60px; /* ヘッダー分だけ上部をあける */
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 3500;
+    padding-top: 60px; /* ヘッダーの高さ分を確保 */
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 9000;
   }
 
   .site-modal-content {
@@ -239,11 +239,28 @@
   .site-close-bar {
     background: #333;
     color: #fff;
-    padding: 6px 12px;
+    padding: 8px 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 13px;
+  }
+
+  .site-btn-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .site-external-btn {
+    background: #28a745;
+    color: white;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
   }
 
   .site-close-btn {
@@ -260,6 +277,7 @@
     width: 100%;
     flex: 1;
     border: none;
+    background: #fff;
   }
 
   /* ----------------------------------
@@ -272,7 +290,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 5000;
+    z-index: 11000;
     background: rgba(0, 0, 0, 0.5);
     justify-content: center;
     align-items: center;
@@ -381,7 +399,7 @@
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.4);
-    z-index: 3000;
+    z-index: 12000;
     justify-content: center;
     align-items: center;
   }
@@ -446,7 +464,7 @@
   .modal {
     display: none;
     position: fixed;
-    z-index: 4000;
+    z-index: 13000;
     left: 0; top: 0; width: 100%; height: 100%;
     background-color: rgba(0, 0, 0, 0.9);
     align-items: center; justify-content: center;
@@ -469,7 +487,7 @@
 </head>
 <body>
 
-<!-- 1段目：ヘッダー（最前面固定） -->
+<!-- 1段目：ヘッダー（最前面固定 z-index: 10000） -->
 <div id="headerContainer" class="header-container">
   <h2>QuestMap</h2>
   <div class="header-right">
@@ -519,8 +537,11 @@
 <div id="embeddedSiteModal">
   <div class="site-modal-content">
     <div class="site-close-bar">
-      <span>Web サイト閲覧中</span>
-      <button class="site-close-btn" onclick="closeEmbeddedSite()">✕ 閉じて地図に戻る</button>
+      <span>表示されない場合は外部表示をお試しください</span>
+      <div class="site-btn-group">
+        <a id="externalSiteLink" class="site-external-btn" href="#" target="_blank" rel="noopener">別タブで開く ↗</a>
+        <button class="site-close-btn" onclick="closeEmbeddedSite()">✕ 閉じる</button>
+      </div>
     </div>
     <iframe id="embeddedIframe" src=""></iframe>
   </div>
@@ -670,9 +691,9 @@ let currentMarker = L.circleMarker([defaultLat, defaultLon], {
   weight: 2
 }).addTo(map);
 
-// タブ制御（Mapボタンタップでいつでもウェブサイトを閉じて地図へ復帰）
+// タブ制御（MapボタンでWebサイト表示領域を閉じる）
 function showTab(tabId){
-  closeEmbeddedSite(); // Webサイト表示が開いていれば閉じる
+  closeEmbeddedSite(); 
 
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   document.getElementById(tabId).classList.add("active");
@@ -692,7 +713,11 @@ function showTab(tabId){
 function openEmbeddedSite(url) {
   closeNoticeModal();
   const iframe = document.getElementById("embeddedIframe");
+  const externalLink = document.getElementById("externalSiteLink");
+  
   iframe.src = url;
+  externalLink.href = url;
+  
   document.getElementById("embeddedSiteModal").style.display = "block";
 }
 
@@ -838,13 +863,11 @@ navigator.geolocation.watchPosition(pos => {
   if (minDist < 0.00018) {
     if (!isInsideTargetArea) {
       isInsideTargetArea = true;
-      // 範囲内に入ったら自動で案内ダイアログを表示
       showNoticeModal();
     }
   } else {
     if (isInsideTargetArea) {
       isInsideTargetArea = false;
-      // 範囲外に出たらダイアログを閉じる
       closeNoticeModal();
     }
   }
