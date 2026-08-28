@@ -210,9 +210,9 @@
   .leaflet-control { pointer-events: auto; }
 
   /* ----------------------------------
-     全画面Webサイト表示用オーバーレイ
+     自動表示用 Googleサイト誘導モーダル
   ---------------------------------- */
-  .site-overlay {
+  .site-notice-modal {
     display: none;
     position: fixed;
     top: 0;
@@ -220,41 +220,69 @@
     width: 100%;
     height: 100%;
     z-index: 5000;
-    background: #fff;
-    flex-direction: column;
-  }
-
-  .site-header {
-    height: 50px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #ddd;
-    display: flex;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 16px;
   }
 
-  .site-title {
-    font-size: 14px;
-    font-weight: bold;
+  .notice-card {
+    background: #ffffff;
+    width: 85%;
+    max-width: 320px;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    text-align: center;
+    animation: popup 0.3s ease-out;
+  }
+
+  @keyframes popup {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .notice-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
     color: #333;
   }
 
-  .btn-close-overlay {
-    padding: 6px 16px;
-    background: #dc3545;
-    color: white;
+  .notice-card p {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .btn-open {
+    flex: 1;
+    padding: 10px;
+    background: #007bff;
+    color: #ffffff;
     border: none;
     border-radius: 6px;
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
   }
 
-  .site-iframe {
-    width: 100%;
-    height: calc(100% - 50px);
+  .btn-cancel {
+    flex: 1;
+    padding: 10px;
+    background: #6c757d;
+    color: #ffffff;
     border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
   }
 
   /* ----------------------------------
@@ -436,13 +464,16 @@
   </div>
 </div>
 
-<!-- 閉じるボタン付き 全画面Webサイト表示モーダル -->
-<div id="siteOverlay" class="site-overlay">
-  <div class="site-header">
-    <span class="site-title">kuniaki.com</span>
-    <button class="btn-close-overlay" onclick="closeSiteOverlay()">閉じる</button>
+<!-- 自動表示用 Googleサイト誘導ダイアログ -->
+<div id="siteNoticeModal" class="site-notice-modal">
+  <div class="notice-card">
+    <h3>スポットに到着しました！</h3>
+    <p>指定の場所に近づきました。<br>以下のボタンから Google サイトを開くことができます。</p>
+    <div class="btn-group">
+      <button class="btn-cancel" onclick="closeNoticeModal()">閉じる</button>
+      <a id="openSiteBtn" class="btn-open" href="https://sites.google.com/view/incictdesign" target="_blank" rel="noopener noreferrer" onclick="closeNoticeModal()">開く</a>
+    </div>
   </div>
-  <iframe id="siteIframe" class="site-iframe" src=""></iframe>
 </div>
 
 <!-- 説明入力モーダル -->
@@ -520,8 +551,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 座標データと遷移先URL
-const TARGET_URL = "https://kuniaki.com";
+// 判定用ターゲット座標リスト
 const locations = [
   {lat:36.51234455009052, lon:140.61580074786988},
   {lat:36.513271792561966, lon:140.61603447231022},
@@ -626,19 +656,13 @@ function closeModal() {
   document.getElementById("imageModal").style.display = "none";
 }
 
-// 全画面Webサイト表示・非表示コントロール
-function openSiteOverlay() {
-  const overlay = document.getElementById("siteOverlay");
-  const iframe = document.getElementById("siteIframe");
-  if (!iframe.src) {
-    iframe.src = TARGET_URL;
-  }
-  overlay.style.display = "flex";
+// 自動表示「開く」ダイアログ制御
+function showNoticeModal() {
+  document.getElementById("siteNoticeModal").style.display = "flex";
 }
 
-function closeSiteOverlay() {
-  const overlay = document.getElementById("siteOverlay");
-  overlay.style.display = "none";
+function closeNoticeModal() {
+  document.getElementById("siteNoticeModal").style.display = "none";
 }
 
 // 地図回転制御
@@ -705,7 +729,7 @@ document.body.addEventListener('click', function() {
   enableOrientation();
 }, { once: true });
 
-// GPS監視 & 指定座標到達自動判定
+// GPS監視 & 指定座標到達判定
 let lastGpsHeading = null;
 let isInsideTargetArea = false;
 
@@ -736,14 +760,14 @@ navigator.geolocation.watchPosition(pos => {
   if (minDist < 0.00018) {
     if (!isInsideTargetArea) {
       isInsideTargetArea = true;
-      // 範囲内に入ったら自動でサイトモーダルを開く
-      openSiteOverlay();
+      // 範囲内に入ったら自動で「開く」ダイアログを表示
+      showNoticeModal();
     }
   } else {
     if (isInsideTargetArea) {
       isInsideTargetArea = false;
-      // 範囲外に出たら自動で閉じる
-      closeSiteOverlay();
+      // 範囲外に出たらダイアログを閉じる
+      closeNoticeModal();
     }
   }
 }, err => {
@@ -929,7 +953,7 @@ db.collection("markers").onSnapshot(snapshot => {
   });
 });
 
-// 削除処理
+// 削除確認・処理
 document.addEventListener('click', function(e) {
   if (e.target && e.target.classList.contains('delete-btn')) {
     const id = e.target.getAttribute('data-id');
