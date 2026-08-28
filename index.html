@@ -210,7 +210,7 @@
   .leaflet-control { pointer-events: auto; }
 
   /* ----------------------------------
-     自動表示用 Googleサイト誘導モーダル
+     自動表示用 到着ダイアログ
   ---------------------------------- */
   .site-notice-modal {
     display: none;
@@ -270,8 +270,6 @@
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
   }
 
   .btn-cancel {
@@ -283,6 +281,50 @@
     border-radius: 6px;
     font-size: 14px;
     cursor: pointer;
+  }
+
+  /* ----------------------------------
+     Webサイト表示用フルスクリーンビューアー
+  ---------------------------------- */
+  .site-viewer-container {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 6000;
+    background: #ffffff;
+    flex-direction: column;
+  }
+
+  .site-viewer-header {
+    height: 50px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+  }
+
+  .btn-back-map {
+    background: #007bff;
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .site-viewer-frame {
+    flex: 1;
+    width: 100%;
+    border: none;
   }
 
   /* ----------------------------------
@@ -464,16 +506,24 @@
   </div>
 </div>
 
-<!-- 自動表示用 Googleサイト誘導ダイアログ -->
+<!-- 自動表示用 到着案内ダイアログ -->
 <div id="siteNoticeModal" class="site-notice-modal">
   <div class="notice-card">
     <h3>スポットに到着しました！</h3>
-    <p>指定の場所に近づきました。<br>以下のボタンから Google サイトを開くことができます。</p>
+    <p>指定の場所に近づきました。<br>以下のボタンから Web サイトを開くことができます。</p>
     <div class="btn-group">
       <button class="btn-cancel" onclick="closeNoticeModal()">閉じる</button>
-      <a id="openSiteBtn" class="btn-open" href="https://sites.google.com/view/incictdesign" target="_blank" rel="noopener noreferrer" onclick="closeNoticeModal()">開く</a>
+      <button class="btn-open" onclick="openSiteViewer()">開く</button>
     </div>
   </div>
+</div>
+
+<!-- Google サイト表示用画面（「地図に戻る」ボタン付き） -->
+<div id="siteViewer" class="site-viewer-container">
+  <div class="site-viewer-header">
+    <button class="btn-back-map" onclick="closeSiteViewer()">&#8592; 地図に戻る</button>
+  </div>
+  <iframe id="siteIframe" class="site-viewer-frame" src=""></iframe>
 </div>
 
 <!-- 説明入力モーダル -->
@@ -656,13 +706,33 @@ function closeModal() {
   document.getElementById("imageModal").style.display = "none";
 }
 
-// 自動表示「開く」ダイアログ制御
+// 到着案内ダイアログ制御
 function showNoticeModal() {
   document.getElementById("siteNoticeModal").style.display = "flex";
 }
 
 function closeNoticeModal() {
   document.getElementById("siteNoticeModal").style.display = "none";
+}
+
+// Webサイト内蔵表示 & 「地図に戻る」制御
+function openSiteViewer() {
+  closeNoticeModal();
+  const iframe = document.getElementById("siteIframe");
+  iframe.src = "https://sites.google.com/view/incictdesign";
+  document.getElementById("siteViewer").style.display = "flex";
+}
+
+function closeSiteViewer() {
+  const viewer = document.getElementById("siteViewer");
+  const iframe = document.getElementById("siteIframe");
+  viewer.style.display = "none";
+  iframe.src = ""; // リソース解放
+  
+  // 地図サイズを再読み込み・更新
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 100);
 }
 
 // 地図回転制御
@@ -760,7 +830,7 @@ navigator.geolocation.watchPosition(pos => {
   if (minDist < 0.00018) {
     if (!isInsideTargetArea) {
       isInsideTargetArea = true;
-      // 範囲内に入ったら自動で「開く」ダイアログを表示
+      // 範囲内に入ったら自動で案内ダイアログを表示
       showNoticeModal();
     }
   } else {
