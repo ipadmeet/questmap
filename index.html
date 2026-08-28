@@ -26,6 +26,9 @@
   ---------------------------------- */
   .header-container {
     position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 10px;
     z-index: 4000;
     background: rgba(255, 255, 255, 0.95);
     padding: 8px 12px;
@@ -210,6 +213,56 @@
   .leaflet-control { pointer-events: auto; }
 
   /* ----------------------------------
+     アプリ内ウェブサイト表示エリア（ヘッダー下）
+  ---------------------------------- */
+  #embeddedSiteModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding-top: 60px; /* ヘッダー分だけ上部をあける */
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 3500;
+  }
+
+  .site-modal-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .site-close-bar {
+    background: #333;
+    color: #fff;
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .site-close-btn {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  #embeddedIframe {
+    width: 100%;
+    flex: 1;
+    border: none;
+  }
+
+  /* ----------------------------------
      自動表示用 到着通知ダイアログ
   ---------------------------------- */
   .site-notice-modal {
@@ -270,8 +323,6 @@
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
   }
 
   .btn-cancel {
@@ -418,7 +469,7 @@
 </head>
 <body>
 
-<!-- 1段目：ヘッダー（常に画面上部に表示） -->
+<!-- 1段目：ヘッダー（最前面固定） -->
 <div id="headerContainer" class="header-container">
   <h2>QuestMap</h2>
   <div class="header-right">
@@ -464,6 +515,17 @@
   </div>
 </div>
 
+<!-- アプリ内ウェブサイト表示モーダル（ヘッダーの下に表示） -->
+<div id="embeddedSiteModal">
+  <div class="site-modal-content">
+    <div class="site-close-bar">
+      <span>Web サイト閲覧中</span>
+      <button class="site-close-btn" onclick="closeEmbeddedSite()">✕ 閉じて地図に戻る</button>
+    </div>
+    <iframe id="embeddedIframe" src=""></iframe>
+  </div>
+</div>
+
 <!-- 自動表示用 到着案内ダイアログ -->
 <div id="siteNoticeModal" class="site-notice-modal">
   <div class="notice-card">
@@ -471,7 +533,7 @@
     <p>指定の場所に近づきました。<br>以下のボタンから Web サイトを開くことができます。</p>
     <div class="btn-group">
       <button class="btn-cancel" onclick="closeNoticeModal()">閉じる</button>
-      <a class="btn-open" href="https://sites.google.com/view/incictdesign" target="_blank" rel="noopener noreferrer" onclick="closeNoticeModal()">開く</a>
+      <button class="btn-open" onclick="openEmbeddedSite('https://sites.google.com/view/incictdesign')">開く</button>
     </div>
   </div>
 </div>
@@ -565,7 +627,7 @@ const locations = [
   {lat:36.51297821595828, lon:140.6164741403123},
   {lat:36.51299410826084, lon:140.6167545628011},
   {lat:36.513000451529734, lon:140.61636834128714},
-  {lat:36.51293569936873, lon:140.61604656249963},
+  {lat:36.51393569936873, lon:140.61604656249963},
   {lat:36.51305673620161, lon:140.61630255150624},
   {lat:36.513172084651906, lon:140.61627691007047},
   {lat:36.513384169685125, lon:140.61633219909413},
@@ -608,8 +670,10 @@ let currentMarker = L.circleMarker([defaultLat, defaultLon], {
   weight: 2
 }).addTo(map);
 
-// タブ制御（Mapボタンタップで必ず地図に戻る）
+// タブ制御（Mapボタンタップでいつでもウェブサイトを閉じて地図へ復帰）
 function showTab(tabId){
+  closeEmbeddedSite(); // Webサイト表示が開いていれば閉じる
+
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   document.getElementById(tabId).classList.add("active");
   
@@ -622,6 +686,20 @@ function showTab(tabId){
     controlsPanel.style.display = "none";
     renderSaved();
   }
+}
+
+// アプリ内ウェブサイト表示エリアの開閉制御
+function openEmbeddedSite(url) {
+  closeNoticeModal();
+  const iframe = document.getElementById("embeddedIframe");
+  iframe.src = url;
+  document.getElementById("embeddedSiteModal").style.display = "block";
+}
+
+function closeEmbeddedSite() {
+  const modal = document.getElementById("embeddedSiteModal");
+  modal.style.display = "none";
+  document.getElementById("embeddedIframe").src = "";
 }
 
 // ユーザー投稿画像のコレクション表示
