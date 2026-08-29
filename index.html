@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>QuestMap & Shared Map</title>
 
+<!-- Leaflet.js CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
@@ -268,7 +269,7 @@
     font-weight: bold;
   }
 
-  /* Googleサイト等の埋め込み失敗時に見える背景案内 */
+  /* note等の埋め込み制限時に見える背景案内 */
   .iframe-fallback-msg {
     position: absolute;
     top: 0;
@@ -300,12 +301,12 @@
 
   .fallback-open-btn {
     padding: 12px 24px;
-    background: #007bff;
+    background: #22c55e;
     color: white;
     text-decoration: none;
     font-weight: bold;
     border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,123,255,0.3);
+    box-shadow: 0 4px 10px rgba(34, 197, 94, 0.3);
   }
 
   #embeddedIframe {
@@ -377,6 +378,7 @@
 </head>
 <body>
 
+<!-- 1段目：ヘッダー -->
 <div id="headerContainer" class="header-container">
   <h2>QuestMap</h2>
   <div class="header-right">
@@ -388,6 +390,7 @@
   </div>
 </div>
 
+<!-- メインタブ（地図画面） -->
 <div id="main" class="tab active">
   <div id="controlsPanel" class="controls">
     <div class="row">
@@ -416,37 +419,41 @@
   </div>
 </div>
 
+<!-- アプリ内ウェブサイト表示モーダル（フォールバック表示付き） -->
 <div id="embeddedSiteModal">
   <div class="site-modal-content">
     <div class="site-close-bar">
       <span>Web サイト閲覧中</span>
       <div class="site-btn-group">
-        <a id="externalSiteLink" class="site-external-btn" href="https://sites.google.com/view/incictdesign" target="_blank" rel="noopener">別タブで開く ↗</a>
+        <a id="externalSiteLink" class="site-external-btn" href="https://note.com/incict/n/ndf654debd46d" target="_blank" rel="noopener">別タブで開く ↗</a>
         <button class="site-close-btn" onclick="closeEmbeddedSite()">✕ 閉じる</button>
       </div>
     </div>
 
+    <!-- note等がブロックされた場合の案内メッセージ -->
     <div class="iframe-fallback-msg">
-      <h4>Webサイトを表示できません</h4>
-      <p>このWebサイト（Google Sites）はセキュリティ制限（X-Frame-Options）のため、アプリ内への埋め込み表示が禁止されています。</p>
-      <a id="fallbackLink" class="fallback-open-btn" href="https://sites.google.com/view/incictdesign" target="_blank" rel="noopener">新しいタブでサイトを開く ↗</a>
+      <h4>Webサイト（note）を表示できません</h4>
+      <p>このWebサイト（note）はセキュリティ制限（X-Frame-Options）のため、アプリ内への直接埋め込みが制限されています。</p>
+      <a id="fallbackLink" class="fallback-open-btn" href="https://note.com/incict/n/ndf654debd46d" target="_blank" rel="noopener">新しいタブで note を開く ↗</a>
     </div>
 
     <iframe id="embeddedIframe" src=""></iframe>
   </div>
 </div>
 
+<!-- 自動表示用 到着案内ダイアログ -->
 <div id="siteNoticeModal" class="site-notice-modal">
   <div class="notice-card">
     <h3>スポットに到着しました！</h3>
-    <p>指定の場所に近づきました。<br>以下のボタンから Web サイトを開くことができます。</p>
+    <p>指定の場所に近づきました。<br>以下のボタンから note 記事を開くことができます。</p>
     <div class="btn-group">
       <button class="btn-cancel" onclick="closeNoticeModal()">閉じる</button>
-      <button class="btn-open" onclick="openEmbeddedSite('https://sites.google.com/view/incictdesign')">開く</button>
+      <button class="btn-open" onclick="openEmbeddedSite('https://note.com/incict/n/ndf654debd46d')">開く</button>
     </div>
   </div>
 </div>
 
+<!-- 説明入力モーダル -->
 <div class="custom-modal-overlay" id="desc-modal">
   <div class="custom-modal">
     <h3>この場所の説明を入力</h3>
@@ -458,15 +465,18 @@
   </div>
 </div>
 
+<!-- 保存済み画像タブ -->
 <div id="saved" class="tab">
   <div id="savedGrid"></div>
 </div>
 
+<!-- 拡大表示用モーダル -->
 <div id="imageModal" class="modal" onclick="closeModal()">
   <span class="close-btn" onclick="closeModal()">&times;</span>
   <img class="modal-content" id="modalImage" onclick="event.stopPropagation()">
 </div>
 
+<!-- ライブラリ読み込み -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
