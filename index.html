@@ -268,7 +268,7 @@
     font-weight: bold;
   }
 
-  /* 埋め込み失敗時の裏背景案内メッセージ */
+  /* Googleサイト等の埋め込み失敗時に見える背景案内 */
   .iframe-fallback-msg {
     position: absolute;
     top: 0;
@@ -350,7 +350,7 @@
   .btn-open { flex: 1; padding: 10px; background: #007bff; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
   .btn-cancel { flex: 1; padding: 10px; background: #6c757d; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
 
-  /* モーダル等省略なしCSS */
+  /* ポップアップ・モーダル */
   .custom-popup img { width: 120px; display: block; margin: 5px 0; }
   .popup-desc { font-size: 13px; color: #555; margin-top: 4px; word-break: break-all; }
   .popup-desc a { color: #007bff; text-decoration: underline; }
@@ -421,15 +421,15 @@
     <div class="site-close-bar">
       <span>Web サイト閲覧中</span>
       <div class="site-btn-group">
-        <a id="externalSiteLink" class="site-external-btn" href="#" target="_blank" rel="noopener">別タブで開く ↗</a>
+        <a id="externalSiteLink" class="site-external-btn" href="https://sites.google.com/view/incictdesign" target="_blank" rel="noopener">別タブで開く ↗</a>
         <button class="site-close-btn" onclick="closeEmbeddedSite()">✕ 閉じる</button>
       </div>
     </div>
 
     <div class="iframe-fallback-msg">
       <h4>Webサイトを表示できません</h4>
-      <p>このWebサイト（kuniaki.net）はセキュリティ保護（X-Frame-Options）のため、アプリ内への埋め込み表示が制限されています。</p>
-      <a id="fallbackLink" class="fallback-open-btn" href="https://kuniaki.net" target="_blank" rel="noopener">新しいタブでサイトを開く ↗</a>
+      <p>このWebサイト（Google Sites）はセキュリティ制限（X-Frame-Options）のため、アプリ内への埋め込み表示が禁止されています。</p>
+      <a id="fallbackLink" class="fallback-open-btn" href="https://sites.google.com/view/incictdesign" target="_blank" rel="noopener">新しいタブでサイトを開く ↗</a>
     </div>
 
     <iframe id="embeddedIframe" src=""></iframe>
@@ -442,7 +442,7 @@
     <p>指定の場所に近づきました。<br>以下のボタンから Web サイトを開くことができます。</p>
     <div class="btn-group">
       <button class="btn-cancel" onclick="closeNoticeModal()">閉じる</button>
-      <button class="btn-open" onclick="openEmbeddedSite('https://kuniaki.net')">開く</button>
+      <button class="btn-open" onclick="openEmbeddedSite('https://sites.google.com/view/incictdesign')">開く</button>
     </div>
   </div>
 </div>
